@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
  
-app = FastAPI(title="code.friend API", version="3.0.0")
+app = FastAPI(title="code.friend API", version="4.0.0")
  
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
@@ -20,8 +20,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
  
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL = "llama-3.3-70b-versatile"
  
 # ── Models ──
 class TranspileRequest(BaseModel):
@@ -47,42 +48,47 @@ class ChatRequest(BaseModel):
     code: Optional[str] = ""
     language: Optional[str] = ""
  
-# ── Gemini helper ──
-async def call_gemini(prompt: str, max_tokens: int = 4096) -> str:
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured on server.")
+# ── Groq helper ──
+async def call_groq(system: str, user: str, max_tokens: int = 4096) -> str:
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured on server.")
  
-    url = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "maxOutputTokens": max_tokens,
-            "temperature": 0.2,
-        }
+        "model": MODEL,
+        "max_tokens": max_tokens,
+        "temperature": 0.2,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user},
+        ],
     }
  
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(url, json=payload)
+        resp = await client.post(GROQ_URL, headers=headers, json=payload)
  
     if resp.status_code != 200:
         err = resp.json()
-        msg = err.get("error", {}).get("message", "Gemini API error")
+        msg = err.get("error", {}).get("message", "Groq API error")
         raise HTTPException(status_code=resp.status_code, detail=msg)
  
     data = resp.json()
     try:
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError):
-        raise HTTPException(status_code=500, detail="Unexpected Gemini response format")
+        raise HTTPException(status_code=500, detail="Unexpected Groq response format")
  
 # ── Routes ──
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "code.friend", "version": "3.0.0", "model": "gemini-2.0-flash"}
+    return {"status": "ok", "service": "code.friend", "version": "4.0.0", "model": MODEL}
  
 @app.get("/health")
 async def health():
-    return {"status": "ok", "api_key_configured": bool(GEMINI_API_KEY)}
+    return {"status": "ok", "api_key_configured": bool(GROQ_API_KEY)}
  
 @app.post("/transpile")
 async def transpile(req: TranspileRequest):
@@ -91,24 +97,21 @@ async def transpile(req: TranspileRequest):
     if req.from_lang == req.to_lang:
         raise HTTPException(status_code=400, detail="from_lang and to_lang must be different")
  
-    prompt = f"""You are an expert code transpiler. Convert the following {req.from_lang} code to {req.to_lang}.
+    system = f"""You are an expert code transpiler and software engineer.
+Convert code from {req.from_lang} to {req.to_lang}.
  
 STRICT RULES:
 - Return ONLY the raw transpiled code
 - NO markdown code fences (no ```)
-- NO explanations, NO preamble, NO comments unless they existed in the original
-- The code must be clean, idiomatic {req.to_lang}
-- Preserve all logic and structure
-- Use {req.to_lang} best practices
-{f"- Additional: {req.extra_instructions}" if req.extra_instructions else ""}
+- NO explanations, NO preamble
+- Preserve comments from the original
+- The code must be clean and idiomatic {req.to_lang}
+- Use {req.to_lang} best practices and naming conventions
+{f"- Additional instructions: {req.extra_instructions}" if req.extra_instructions else ""}"""
  
-{req.from_lang} code to convert:
- 
-{req.source_code}"""
- 
+    user = f"Convert this {req.from_lang} code to {req.to_lang}:\n\n{req.source_code}"
     logger.info(f"Transpile: {req.from_lang} → {req.to_lang} ({len(req.source_code)} chars)")
-    result = await call_gemini(prompt, max_tokens=4096)
-    # Strip any accidental markdown fences
+    result = await call_groq(system, user, max_tokens=4096)
     result = result.strip()
     if result.startswith("```"):
         lines = result.split("\n")
@@ -120,22 +123,14 @@ async def explain(req: ExplainRequest):
     if not req.source_code.strip():
         raise HTTPException(status_code=400, detail="source_code is required")
  
-    prompt = f"""You are a friendly expert coding assistant. Explain the following {req.language} code clearly.
+    system = f"""You are a friendly expert coding assistant.
+Explain {req.language} code clearly and concisely.
+Cover: what it does, how it works step by step, key concepts, and potential issues.
+Use plain text only, no markdown."""
  
-Cover:
-1. What the code does (overview)
-2. How it works step by step
-3. Key concepts and patterns used
-4. Any potential issues or improvements
- 
-Be concise but thorough. Use plain text, no markdown.
- 
-{req.language} code:
- 
-{req.source_code}"""
- 
+    user = f"Explain this {req.language} code:\n\n{req.source_code}"
     logger.info(f"Explain: {req.language}")
-    result = await call_gemini(prompt, max_tokens=2048)
+    result = await call_groq(system, user, max_tokens=2048)
     return {"result": result.strip()}
  
 @app.post("/review")
@@ -143,26 +138,21 @@ async def review(req: ReviewRequest):
     if not req.source_code.strip():
         raise HTTPException(status_code=400, detail="source_code is required")
  
-    prompt = f"""You are a senior software engineer doing a thorough code review.
- 
-Review the following {req.language} code and provide actionable feedback on:
+    system = f"""You are a senior software engineer doing a thorough code review.
+Review {req.language} code and give actionable feedback on:
 - Bugs or logical errors
 - Security vulnerabilities
 - Performance issues
 - Code style and readability
-- Best practices violations
+- Best practice violations
 - Suggested improvements
+Be specific, reference line numbers where possible.
+End with an overall rating out of 10.
+Use plain text only, no markdown."""
  
-Be specific. Reference line numbers or snippets where possible.
-End with an overall rating out of 10 and a one-line summary.
-Use plain text, no markdown.
- 
-{req.language} code:
- 
-{req.source_code}"""
- 
+    user = f"Review this {req.language} code:\n\n{req.source_code}"
     logger.info(f"Review: {req.language}")
-    result = await call_gemini(prompt, max_tokens=2048)
+    result = await call_groq(system, user, max_tokens=2048)
     return {"result": result.strip()}
  
 @app.post("/simulate")
@@ -170,21 +160,15 @@ async def simulate(req: SimulateRequest):
     if not req.code.strip():
         raise HTTPException(status_code=400, detail="code is required")
  
-    prompt = f"""You are a precise code execution simulator.
+    system = f"""You are a precise code execution simulator.
+Mentally execute the {req.language} code and return ONLY what prints to stdout/console.
+No explanation. No markdown. Just raw terminal output.
+If nothing prints, return exactly: (no output)
+Maximum 20 lines."""
  
-Mentally execute the following {req.language} code and return ONLY what would be printed to stdout/console.
-- No explanation
-- No markdown
-- Just the raw terminal output exactly as it would appear
-- If nothing is printed, return exactly: (no output)
-- Maximum 20 lines
- 
-{req.language} code:
- 
-{req.code}"""
- 
+    user = f"Simulate this {req.language} code:\n\n{req.code}"
     logger.info(f"Simulate: {req.language}")
-    result = await call_gemini(prompt, max_tokens=512)
+    result = await call_groq(system, user, max_tokens=512)
     return {"result": result.strip()}
  
 @app.post("/chat")
@@ -194,12 +178,12 @@ async def chat(req: ChatRequest):
  
     code_ctx = f"\n\nCurrent code in editor ({req.language}):\n{req.code[:2000]}" if req.code else ""
  
-    prompt = f"""You are code.friend — a helpful, friendly AI coding assistant.
-Help developers with coding questions, debugging, explanations, and best practices.
-Be concise, practical and friendly. Use plain text.{code_ctx}
+    system = f"""You are code.friend — a helpful, friendly AI coding assistant.
+Help with coding questions, debugging, explanations, and best practices.
+Be concise, practical and friendly. Plain text only.{code_ctx}"""
  
-User asks: {req.message}"""
- 
+    user = req.message
     logger.info(f"Chat: {req.message[:50]}")
-    result = await call_gemini(prompt, max_tokens=1024)
+    result = await call_groq(system, user, max_tokens=1024)
     return {"result": result.strip()}
+ 
