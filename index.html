@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>code.friend — AI Code Transpiler</title>
+<meta name="description" content="AI-powered code transpiler — convert code between 21 languages instantly." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green: #00e87a;
+  --green-glow: #00e87a22;
+  --green-dim: #00b85f;
+  --amber: #f5c842;
+  --red: #ff4d6a;
+  --blue: #4d9eff;
+  --purple: #b07aff;
+  --bg: #080b10;
+  --bg2: #0d1117;
+  --panel: #111520;
+  --panel2: #161b27;
+  --panel3: #1c2232;
+  --border: #1f2636;
+  --border2: #2a3448;
+  --text: #d4dde8;
+  --text2: #8899aa;
+  --text3: #4a5568;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.logo {
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  user-select: none;
+}
+
+.logo-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px var(--green);
+  animation: pdot 2.5s ease-in-out infinite;
+}
+@keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.65)} }
+
+.header-sep { width: 1px; height: 24px; background: var(--border2); }
+
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-family: var(--sans);
+}
+
+.srv-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text3);
+  transition: background .3s, box-shadow .3s;
+}
+.srv-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.srv-dot.err { background: var(--red); }
+.srv-dot.checking { background: var(--amber); animation: pdot 1s ease-in-out infinite; }
+
+#srvLabel { color: var(--text2); }
+
+.header-center { flex: 1; }
+
+.server-url-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.srv-url-label {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.srv-url-input {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  outline: none;
+  transition: border-color .2s;
+}
+.srv-url-input:focus { border-color: var(--green); }
+.srv-url-input::placeholder { color: var(--text3); }
+
+.ping-btn {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.ping-btn:hover { color: var(--green); border-color: var(--green); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.hbtn {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.hbtn:hover { color: var(--text); border-color: var(--text3); }
+
+/* ── LANG BAR ── */
+.lang-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.lang-group { display: flex; align-items: center; gap: 7px; }
+
+.lang-lbl {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.lang-sel {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 26px 5px 9px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a5568'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  transition: border-color .2s;
+}
+.lang-sel:focus { border-color: var(--green); }
+.lang-sel option { background: #161b27; }
+
+.swap-btn {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all .15s;
+}
+.swap-btn:hover { color: var(--green); border-color: var(--green); }
+
+.spacer { flex: 1; }
+
+.action-group { display: flex; align-items: center; gap: 8px; }
+
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+.btn-primary {
+  background: var(--green);
+  color: #080b10;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+.btn-primary:hover { background: var(--green-dim); }
+.btn-primary:disabled {
+  background: #0d2a1a;
+  color: #1e4a30;
+  cursor: not-allowed;
+}
+
+/* ── CODE PANELS ── */
+.panels {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.code-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.code-panel:last-child { border-right: none; }
+
+.panel-head {
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--sans);
+  flex-shrink: 0;
+}
+
+.ph-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ph-dot.src { background: var(--amber); }
+.ph-dot.out { background: var(--green); }
+.ph-name { font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.ph-count { margin-left: auto; font-size: 10px; }
+
+.copy-mini {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.copy-mini:hover { color: var(--green); border-color: var(--green); }
+
+.editor-wrap {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.line-nums {
+  background: var(--panel2);
+  border-right: 1px solid var(--border);
+  padding: 14px 8px 14px 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text3);
+  text-align: right;
+  user-select: none;
+  overflow: hidden;
+  min-width: 38px;
+  flex-shrink: 0;
+}
+
+textarea.code-ta {
+  flex: 1;
+  background: var(--bg2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 14px 16px;
+  tab-size: 2;
+  overflow: auto;
+  white-space: pre;
+}
+textarea.code-ta::placeholder { color: var(--text3); }
+
+.output-pre {
+  flex: 1;
+  background: var(--bg2);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 14px 16px;
+  overflow: auto;
+  white-space: pre;
+  color: var(--text);
+}
+
+/* ── TERMINAL ── */
+.terminal {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 185px;
+}
+
+.term-head {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.term-title {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  display: flex; align-items: center; gap: 6px;
+}
+.term-title::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber);
+  display: block;
+}
+
+.term-clear {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.term-clear:hover { color: var(--text2); border-color: var(--border2); }
+
+.term-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+.tl { display: flex; gap: 8px; margin-bottom: 1px; }
+.tp { color: var(--green); flex-shrink: 0; font-weight: 700; }
+.tt { word-break: break-all; white-space: pre-wrap; }
+.tt.err { color: var(--red); }
+.tt.ok  { color: var(--green); }
+.tt.info{ color: var(--amber); }
+.tt.dim { color: var(--text3); }
+.tt.blue{ color: var(--blue); }
+.tt.purple{ color: var(--purple); }
+
+.cur {
+  display: inline-block;
+  width: 7px; height: 13px;
+  background: var(--green);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: bl 1s step-end infinite;
+}
+@keyframes bl { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── STATUS BAR ── */
+.statusbar {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 3px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--sans);
+  flex-shrink: 0;
+}
+
+/* ── HISTORY DRAWER ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.65);
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+.overlay.open { display: flex; justify-content: flex-end; }
+
+.drawer {
+  width: 380px; height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+}
+
+.drawer-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.drawer-title { font-family: var(--sans); font-size: 15px; font-weight: 700; flex: 1; }
+.drawer-x {
+  background: transparent; border: none;
+  color: var(--text2); font-size: 22px; cursor: pointer; line-height: 1;
+  padding: 2px 6px; border-radius: 4px;
+}
+.drawer-x:hover { color: var(--text); }
+
+.history-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+.hist-item {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.hist-item:hover { border-color: var(--green); }
+.hist-langs { font-size: 11px; color: var(--green); font-family: var(--sans); font-weight: 700; margin-bottom: 4px; }
+.hist-preview { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-time { font-size: 10px; color: var(--text3); margin-top: 5px; font-family: var(--sans); }
+
+.hist-empty { color: var(--text3); font-size: 13px; text-align: center; padding: 40px 20px; font-family: var(--sans); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  z-index: 60;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  width: 480px; max-width: 95vw;
+  overflow: hidden;
+}
+.modal-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+}
+.modal-title { font-family: var(--sans); font-size: 15px; font-weight: 700; flex: 1; }
+.modal-x {
+  background: transparent; border: none;
+  color: var(--text2); font-size: 22px; cursor: pointer; border-radius: 4px;
+}
+.modal-x:hover { color: var(--text); }
+.modal-body { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.set-row { display: flex; flex-direction: column; gap: 5px; }
+.set-lbl {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  color: var(--text2); text-transform: uppercase; letter-spacing: .06em;
+}
+.set-inp {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  padding: 8px 12px; outline: none;
+  transition: border-color .2s; width: 100%;
+}
+.set-inp:focus { border-color: var(--green); }
+.set-desc { font-size: 11px; color: var(--text3); font-family: var(--sans); }
+.modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 22px; right: 22px;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 9px;
+  padding: 10px 16px;
+  font-family: var(--sans); font-size: 13px;
+  color: var(--text);
+  z-index: 200;
+  transform: translateY(70px); opacity: 0;
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+  display: flex; align-items: center; gap: 8px;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: #00e87a44; }
+.toast.error   { border-color: #ff4d6a44; }
+
+/* ── SPINNER ── */
+.spin {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid #0d2a1a; border-top-color: var(--green);
+  border-radius: 50%; animation: sp .7s linear infinite;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ── CHAT BUBBLE ── */
+.chat-bubble {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 46px; height: 46px;
+  background: var(--green);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px var(--green-glow);
+  z-index: 40;
+  font-size: 20px;
+  transition: transform .2s;
+}
+.chat-bubble:hover { transform: scale(1.1); }
+
+.chat-panel {
+  display: none;
+  position: fixed;
+  bottom: 80px; right: 24px;
+  width: 340px; height: 420px;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  flex-direction: column;
+  z-index: 40;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.chat-panel.open { display: flex; }
+
+.chat-head {
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  display: flex; align-items: center; gap: 8px;
+}
+.chat-x {
+  margin-left: auto;
+  background: transparent; border: none;
+  color: var(--text2); font-size: 18px; cursor: pointer;
+}
+
+.chat-msgs {
+  flex: 1; overflow-y: auto;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.chat-msg {
+  max-width: 85%;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-msg.user {
+  background: var(--green);
+  color: #080b10;
+  align-self: flex-end;
+  font-weight: 600;
+}
+.chat-msg.ai {
+  background: var(--panel3);
+  color: var(--text);
+  align-self: flex-start;
+  border: 1px solid var(--border2);
+}
+
+.chat-input-row {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex; gap: 8px;
+}
+.chat-ta {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--mono); font-size: 12px;
+  padding: 7px 10px;
+  resize: none; outline: none;
+  height: 36px; line-height: 1.4;
+  transition: border-color .2s;
+}
+.chat-ta:focus { border-color: var(--green); }
+.chat-ta::placeholder { color: var(--text3); }
+
+.chat-send {
+  background: var(--green);
+  border: none;
+  border-radius: 7px;
+  color: #080b10;
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 700;
+  padding: 0 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.chat-send:hover { background: var(--green-dim); }
+.chat-send:disabled { background: #0d2a1a; color: #1e4a30; cursor: not-allowed; }
+
+/* ── MOBILE ── */
+@media (max-width: 680px) {
+  .panels { grid-template-columns: 1fr; }
+  .code-panel:first-child { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+  .server-url-wrap { display: none; }
+  .action-group .btn-ghost:not(:last-child) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    code.friend
+  </div>
+  <div class="header-sep"></div>
+  <div class="server-status">
+    <div class="srv-dot checking" id="srvDot"></div>
+    <span id="srvLabel">connecting...</span>
+  </div>
+  <div class="header-sep"></div>
+  <div class="server-url-wrap">
+    <span class="srv-url-label">API</span>
+    <input class="srv-url-input" id="serverUrl" type="text"
+      placeholder="https://your-backend.onrender.com"
+      value="" />
+    <button class="ping-btn" id="pingBtn">ping</button>
+  </div>
+  <div class="header-right">
+    <button class="hbtn" id="historyBtn">history</button>
+    <button class="hbtn" id="settingsBtn">settings</button>
+  </div>
+</header>
+
+<!-- ── LANG BAR ── -->
+<div class="lang-bar">
+  <div class="lang-group">
+    <span class="lang-lbl">From</span>
+    <select class="lang-sel" id="fromLang">
+      <option>Python</option><option selected>JavaScript</option><option>TypeScript</option>
+      <option>Java</option><option>C++</option><option>C</option><option>Go</option>
+      <option>Rust</option><option>Ruby</option><option>PHP</option><option>Swift</option>
+      <option>Kotlin</option><option>C#</option><option>Bash</option><option>R</option>
+      <option>Lua</option><option>Dart</option><option>Scala</option><option>Haskell</option>
+      <option>Elixir</option><option>SQL</option>
+    </select>
+  </div>
+  <button class="swap-btn" id="swapBtn" title="swap languages">⇄</button>
+  <div class="lang-group">
+    <span class="lang-lbl">To</span>
+    <select class="lang-sel" id="toLang">
+      <option selected>Python</option><option>JavaScript</option><option>TypeScript</option>
+      <option>Java</option><option>C++</option><option>C</option><option>Go</option>
+      <option>Rust</option><option>Ruby</option><option>PHP</option><option>Swift</option>
+      <option>Kotlin</option><option>C#</option><option>Bash</option><option>R</option>
+      <option>Lua</option><option>Dart</option><option>Scala</option><option>Haskell</option>
+      <option>Elixir</option><option>SQL</option>
+    </select>
+  </div>
+  <div class="spacer"></div>
+  <div class="action-group">
+    <button class="btn btn-ghost" id="clearBtn">clear</button>
+    <button class="btn btn-ghost" id="explainBtn">explain</button>
+    <button class="btn btn-ghost" id="reviewBtn">review</button>
+    <button class="btn btn-primary" id="transpileBtn">⟳ transpile</button>
+  </div>
+</div>
+
+<!-- ── PANELS ── -->
+<div class="panels">
+  <div class="code-panel">
+    <div class="panel-head">
+      <div class="ph-dot src"></div>
+      <span class="ph-name">source</span>
+      <span class="ph-count" id="srcCount">0 lines</span>
+    </div>
+    <div class="editor-wrap">
+      <div class="line-nums" id="srcNums">1</div>
+      <textarea class="code-ta" id="srcCode" spellcheck="false"
+        placeholder="// paste your code here...
+
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet('world'));"></textarea>
+    </div>
+  </div>
+
+  <div class="code-panel">
+    <div class="panel-head">
+      <div class="ph-dot out"></div>
+      <span class="ph-name">output</span>
+      <span class="ph-count" id="outCount"></span>
+      <button class="copy-mini" id="copyOutBtn">copy</button>
+    </div>
+    <div class="editor-wrap">
+      <div class="line-nums" id="outNums"></div>
+      <div class="output-pre" id="outDisplay" style="color:var(--text3);font-style:italic;">// transpiled code appears here...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TERMINAL ── -->
+<div class="terminal">
+  <div class="term-head">
+    <div class="term-title">terminal</div>
+    <button class="term-clear" id="clearTermBtn">clear</button>
+  </div>
+  <div class="term-body" id="termBody">
+    <div class="tl"><span class="tp">$</span><span class="tt dim">code.friend v2.0 — no API key needed, just paste your code</span></div>
+    <div class="tl"><span class="tp">$</span><span class="tt dim">set your backend URL above → hit ping → then transpile</span></div>
+    <div class="tl"><span class="tp">$</span><span class="tt dim">shortcuts: Ctrl+Enter = transpile · Ctrl+D = clear</span></div>
+    <div class="tl" id="termCursor"><span class="tp">▌</span><span class="tt"><span class="cur"></span></span></div>
+  </div>
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div class="statusbar">
+  <span id="modelInfo">model: claude-sonnet-4</span>
+  <span id="tokenInfo">tokens: —</span>
+  <span id="timeInfo"></span>
+  <span style="flex:1"></span>
+  <span>code.friend © 2025 — AI Transpiler</span>
+</div>
+
+<!-- ── CHAT BUBBLE ── -->
+<div class="chat-bubble" id="chatBubble" title="Ask code.friend">💬</div>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-head">
+    <span>code.friend AI</span>
+    <button class="chat-x" id="chatClose">×</button>
+  </div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="chat-msg ai">Hey! I'm your coding buddy. Ask me anything about your code, languages, bugs — whatever you need. 🚀</div>
+  </div>
+  <div class="chat-input-row">
+    <textarea class="chat-ta" id="chatInput" placeholder="ask anything..." rows="1"></textarea>
+    <button class="chat-send" id="chatSend">↑</button>
+  </div>
+</div>
+
+<!-- ── HISTORY DRAWER ── -->
+<div class="overlay" id="histOverlay">
+  <div class="drawer">
+    <div class="drawer-head">
+      <span class="drawer-title">transpile history</span>
+      <button class="drawer-x" id="histClose">×</button>
+    </div>
+    <div class="history-list" id="histList">
+      <div class="hist-empty">no history yet.<br/>transpilations will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">settings</span>
+      <button class="modal-x" id="settingsClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-row">
+        <span class="set-lbl">Backend Server URL</span>
+        <input class="set-inp" id="setServerUrl" type="text" placeholder="https://your-app.onrender.com" />
+        <span class="set-desc">Your deployed FastAPI backend. Deploy from the provided backend folder.</span>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">Extra Instructions</span>
+        <textarea class="set-inp" id="setExtra" rows="3" placeholder="e.g. prefer functional style, add type hints, include error handling"></textarea>
+        <span class="set-desc">Appended to every transpile request sent to Claude.</span>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">Editor Font Size</span>
+        <select class="set-inp" id="setFont">
+          <option value="12">12px</option>
+          <option value="13" selected>13px</option>
+          <option value="14">14px</option>
+          <option value="15">15px</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="setCancelBtn">cancel</button>
+      <button class="btn btn-primary" id="setSaveBtn">save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+const S = {
+  serverUrl: '',
+  extra: '',
+  fontSize: 13,
+  history: [],
+  outputCode: '',
+  loading: false,
+  chatLoading: false,
+};
+
+const $ = id => document.getElementById(id);
+
+/* ═══════════════════════════════════════
+   PERSIST
+═══════════════════════════════════════ */
+function persist() {
+  localStorage.setItem('cf2_url',     S.serverUrl);
+  localStorage.setItem('cf2_extra',   S.extra);
+  localStorage.setItem('cf2_font',    S.fontSize);
+  localStorage.setItem('cf2_history', JSON.stringify(S.history.slice(0,60)));
+}
+
+function restore() {
+  S.serverUrl = localStorage.getItem('cf2_url')   || '';
+  S.extra     = localStorage.getItem('cf2_extra') || '';
+  S.fontSize  = parseInt(localStorage.getItem('cf2_font') || '13');
+  try { S.history = JSON.parse(localStorage.getItem('cf2_history') || '[]'); } catch { S.history = []; }
+
+  if (S.serverUrl) {
+    $('serverUrl').value = S.serverUrl;
+    $('setServerUrl').value = S.serverUrl;
+    pingServer(true);
+  }
+  $('setExtra').value = S.extra;
+  $('setFont').value  = S.fontSize;
+  applyFont();
+}
+
+/* ═══════════════════════════════════════
+   SERVER PING
+═══════════════════════════════════════ */
+async function pingServer(silent = false) {
+  const url = ($('serverUrl').value || '').trim().replace(/\/$/, '');
+  if (!url) { setSrv('no url', 'err'); return; }
+  S.serverUrl = url;
+  persist();
+  setSrv('checking...', 'checking');
+  try {
+    const r = await fetch(url + '/health', { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      const keyOk = d.api_key_configured;
+      setSrv(keyOk ? 'connected' : 'no API key on server', keyOk ? 'ok' : 'err');
+      if (!silent) toast(keyOk ? '✓ backend connected' : '⚠ server running but no API key set', keyOk ? 'success' : 'error');
+    } else { setSrv('bad response', 'err'); }
+  } catch(e) {
+    setSrv('unreachable', 'err');
+    if (!silent) toast('✗ cannot reach server — check URL', 'error');
+  }
+}
+
+function setSrv(label, state) {
+  $('srvLabel').textContent = label;
+  const d = $('srvDot');
+  d.className = 'srv-dot' + (state === 'ok' ? ' ok' : state === 'err' ? ' err' : state === 'checking' ? ' checking' : '');
+}
+
+$('pingBtn').addEventListener('click', () => pingServer());
+$('serverUrl').addEventListener('change', () => pingServer(true));
+
+/* ═══════════════════════════════════════
+   LINE NUMBERS
+═══════════════════════════════════════ */
+function updateSrcNums() {
+  const lines = $('srcCode').value.split('\n').length;
+  $('srcNums').innerHTML = Array.from({length: lines}, (_,i) => i+1).join('<br>');
+  $('srcCount').textContent = `${lines} line${lines===1?'':'s'}`;
+}
+
+function setOutputNums(text) {
+  if (!text) { $('outNums').innerHTML = ''; $('outCount').textContent = ''; return; }
+  const lines = text.split('\n').length;
+  $('outNums').innerHTML = Array.from({length: lines}, (_,i) => i+1).join('<br>');
+  $('outCount').textContent = `${lines} lines`;
+}
+
+$('srcCode').addEventListener('input', updateSrcNums);
+
+$('srcCode').addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = $('srcCode').selectionStart;
+    const ta = $('srcCode');
+    ta.value = ta.value.slice(0,s) + '  ' + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = s + 2;
+    updateSrcNums();
+  }
+});
+
+$('srcCode').addEventListener('scroll', () => { $('srcNums').scrollTop = $('srcCode').scrollTop; });
+$('outDisplay').addEventListener('scroll', () => { $('outNums').scrollTop = $('outDisplay').scrollTop; });
+
+/* ═══════════════════════════════════════
+   TERMINAL
+═══════════════════════════════════════ */
+function addTerm(text, cls = '') {
+  const cur = $('termCursor');
+  if (cur) cur.remove();
+  const div = document.createElement('div');
+  div.className = 'tl';
+  div.innerHTML = `<span class="tp">$</span><span class="tt${cls?' '+cls:''}">${esc(text)}</span>`;
+  $('termBody').appendChild(div);
+  const c = document.createElement('div');
+  c.id = 'termCursor'; c.className = 'tl';
+  c.innerHTML = `<span class="tp">▌</span><span class="tt"><span class="cur"></span></span>`;
+  $('termBody').appendChild(c);
+  $('termBody').scrollTop = $('termBody').scrollHeight;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+$('clearTermBtn').addEventListener('click', () => {
+  $('termBody').innerHTML = '';
+  const c = document.createElement('div');
+  c.id = 'termCursor'; c.className = 'tl';
+  c.innerHTML = `<span class="tp">▌</span><span class="tt"><span class="cur"></span></span>`;
+  $('termBody').appendChild(c);
+});
+
+/* ═══════════════════════════════════════
+   API CALL
+═══════════════════════════════════════ */
+async function apiCall(endpoint, body) {
+  const url = (S.serverUrl || $('serverUrl').value).trim().replace(/\/$/, '');
+  if (!url) throw new Error('No backend URL set. Enter it in the header and hit ping.');
+
+  const r = await fetch(`${url}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+
+  if (data.usage) {
+    $('tokenInfo').textContent = `tokens: ${data.usage.input_tokens||0}in / ${data.usage.output_tokens||0}out`;
+  }
+  return data.result;
+}
+
+/* ═══════════════════════════════════════
+   SET OUTPUT
+═══════════════════════════════════════ */
+function setOutput(text) {
+  S.outputCode = text;
+  const d = $('outDisplay');
+  d.textContent = text;
+  d.style.color = '';
+  d.style.fontStyle = '';
+  setOutputNums(text);
+}
+
+function clearOutput() {
+  S.outputCode = '';
+  const d = $('outDisplay');
+  d.textContent = '// transpiled code appears here...';
+  d.style.color = 'var(--text3)';
+  d.style.fontStyle = 'italic';
+  setOutputNums('');
+}
+
+/* ═══════════════════════════════════════
+   LOADING
+═══════════════════════════════════════ */
+function setLoading(val) {
+  S.loading = val;
+  const btn = $('transpileBtn');
+  btn.disabled = val;
+  btn.innerHTML = val ? '<span class="spin"></span> working...' : '⟳ transpile';
+}
+
+/* ═══════════════════════════════════════
+   TRANSPILE
+═══════════════════════════════════════ */
+async function transpile() {
+  if (S.loading) return;
+  const code = $('srcCode').value.trim();
+  const from = $('fromLang').value;
+  const to   = $('toLang').value;
+
+  if (!code) { toast('⚠ paste some code first', 'error'); return; }
+  if (from === to) { toast('⚠ select different languages', 'error'); return; }
+
+  setLoading(true);
+  const t0 = Date.now();
+  addTerm(`transpiling ${from} → ${to} ...`, 'info');
+
+  try {
+    const result = await apiCall('transpile', {
+      source_code: code,
+      from_lang: from,
+      to_lang: to,
+      extra_instructions: S.extra,
+    });
+
+    setOutput(result);
+    const ms = ((Date.now()-t0)/1000).toFixed(2);
+    $('timeInfo').textContent = `last: ${ms}s`;
+    addTerm(`done in ${ms}s — ${result.split('\n').length} lines of ${to}`, 'ok');
+    saveHist(from, to, code, result);
+    toast('✓ transpiled!', 'success');
+    setTimeout(() => simulate(to, result), 500);
+  } catch(e) {
+    addTerm('error: ' + e.message, 'err');
+    toast('✗ ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function simulate(lang, code) {
+  addTerm(`> simulating ${lang} runtime...`, 'blue');
+  try {
+    const out = await apiCall('simulate', { code, language: lang });
+    out.trim().split('\n').forEach(l => addTerm(l || ' '));
+  } catch { addTerm('simulation unavailable', 'dim'); }
+}
+
+/* ═══════════════════════════════════════
+   EXPLAIN
+═══════════════════════════════════════ */
+$('explainBtn').addEventListener('click', async () => {
+  const code = $('srcCode').value.trim();
+  if (!code) { toast('⚠ paste some code first', 'error'); return; }
+  if (S.loading) return;
+  setLoading(true);
+  addTerm(`explaining ${$('fromLang').value} code...`, 'purple');
+  try {
+    const r = await apiCall('explain', { source_code: code, language: $('fromLang').value });
+    setOutput(r);
+    addTerm('explanation ready', 'ok');
+    toast('✓ explanation ready');
+  } catch(e) { addTerm('error: '+e.message,'err'); toast('✗ '+e.message,'error'); }
+  finally { setLoading(false); }
+});
+
+/* ═══════════════════════════════════════
+   REVIEW
+═══════════════════════════════════════ */
+$('reviewBtn').addEventListener('click', async () => {
+  const code = $('srcCode').value.trim();
+  if (!code) { toast('⚠ paste some code first', 'error'); return; }
+  if (S.loading) return;
+  setLoading(true);
+  addTerm(`reviewing ${$('fromLang').value} code...`, 'purple');
+  try {
+    const r = await apiCall('review', { source_code: code, language: $('fromLang').value });
+    setOutput(r);
+    addTerm('code review complete', 'ok');
+    toast('✓ review complete');
+  } catch(e) { addTerm('error: '+e.message,'err'); toast('✗ '+e.message,'error'); }
+  finally { setLoading(false); }
+});
+
+/* ═══════════════════════════════════════
+   CLEAR / COPY / SWAP
+═══════════════════════════════════════ */
+$('clearBtn').addEventListener('click', () => {
+  $('srcCode').value = '';
+  clearOutput();
+  updateSrcNums();
+  addTerm('cleared', 'dim');
+});
+
+$('copyOutBtn').addEventListener('click', () => {
+  if (!S.outputCode) return;
+  navigator.clipboard.writeText(S.outputCode).then(() => {
+    $('copyOutBtn').textContent = 'copied!';
+    $('copyOutBtn').style.color = 'var(--green)';
+    setTimeout(() => { $('copyOutBtn').textContent = 'copy'; $('copyOutBtn').style.color = ''; }, 1600);
+    toast('✓ copied to clipboard');
+  });
+});
+
+$('swapBtn').addEventListener('click', () => {
+  const f = $('fromLang').value, t = $('toLang').value;
+  $('fromLang').value = t; $('toLang').value = f;
+  if (S.outputCode) {
+    $('srcCode').value = S.outputCode;
+    clearOutput();
+    updateSrcNums();
+  }
+  addTerm(`swapped: ${$('fromLang').value} ↔ ${$('toLang').value}`, 'info');
+});
+
+/* ═══════════════════════════════════════
+   KEYBOARD
+═══════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); transpile(); }
+  if ((e.ctrlKey||e.metaKey) && e.key==='d')     { e.preventDefault(); $('clearBtn').click(); }
+});
+
+/* ═══════════════════════════════════════
+   HISTORY
+═══════════════════════════════════════ */
+function saveHist(from, to, src, out) {
+  S.history.unshift({ from, to, src, out, ts: Date.now() });
+  if (S.history.length > 60) S.history.pop();
+  persist();
+}
+
+function renderHist() {
+  const el = $('histList');
+  if (!S.history.length) {
+    el.innerHTML = '<div class="hist-empty">no history yet.</div>';
+    return;
+  }
+  el.innerHTML = S.history.map((h,i) => `
+    <div class="hist-item" data-i="${i}">
+      <div class="hist-langs">${esc(h.from)} → ${esc(h.to)}</div>
+      <div class="hist-preview">${esc(h.src.split('\n')[0].substring(0,60))}</div>
+      <div class="hist-time">${new Date(h.ts).toLocaleString()}</div>
+    </div>
+  `).join('');
+  el.querySelectorAll('.hist-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const h = S.history[parseInt(el.dataset.i)];
+      $('fromLang').value = h.from; $('toLang').value = h.to;
+      $('srcCode').value = h.src; setOutput(h.out);
+      updateSrcNums(); closeHist();
+    });
+  });
+}
+
+$('historyBtn').addEventListener('click', () => { renderHist(); $('histOverlay').classList.add('open'); });
+function closeHist() { $('histOverlay').classList.remove('open'); }
+$('histClose').addEventListener('click', closeHist);
+$('histOverlay').addEventListener('click', e => { if (e.target===$('histOverlay')) closeHist(); });
+
+/* ═══════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════ */
+$('settingsBtn').addEventListener('click', () => {
+  $('setServerUrl').value = S.serverUrl;
+  $('setExtra').value = S.extra;
+  $('setFont').value = S.fontSize;
+  $('settingsOverlay').classList.add('open');
+});
+
+$('setSaveBtn').addEventListener('click', () => {
+  const newUrl = $('setServerUrl').value.trim().replace(/\/$/, '');
+  if (newUrl) { S.serverUrl = newUrl; $('serverUrl').value = newUrl; }
+  S.extra    = $('setExtra').value.trim();
+  S.fontSize = parseInt($('setFont').value);
+  applyFont(); persist();
+  $('settingsOverlay').classList.remove('open');
+  toast('✓ settings saved');
+  if (newUrl) pingServer(true);
+});
+
+function closeSett() { $('settingsOverlay').classList.remove('open'); }
+$('settingsClose').addEventListener('click', closeSett);
+$('setCancelBtn').addEventListener('click', closeSett);
+$('settingsOverlay').addEventListener('click', e => { if (e.target===$('settingsOverlay')) closeSett(); });
+
+function applyFont() {
+  [$('srcCode'), $('outDisplay'), $('srcNums'), $('outNums'), $('termBody')].forEach(el => {
+    if (el) el.style.fontSize = S.fontSize + 'px';
+  });
+}
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+let toastTimer;
+function toast(msg, type='success') {
+  const t = $('toast');
+  clearTimeout(toastTimer);
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ═══════════════════════════════════════
+   CHAT
+═══════════════════════════════════════ */
+$('chatBubble').addEventListener('click', () => $('chatPanel').classList.toggle('open'));
+$('chatClose').addEventListener('click', () => $('chatPanel').classList.remove('open'));
+
+async function sendChat() {
+  if (S.chatLoading) return;
+  const msg = $('chatInput').value.trim();
+  if (!msg) return;
+  $('chatInput').value = '';
+
+  appendChat(msg, 'user');
+  S.chatLoading = true;
+  $('chatSend').disabled = true;
+
+  try {
+    const result = await apiCall('chat', {
+      message: msg,
+      code: $('srcCode').value.substring(0, 2000),
+      language: $('fromLang').value,
+    });
+    appendChat(result, 'ai');
+  } catch(e) {
+    appendChat('Error: ' + e.message, 'ai');
+  } finally {
+    S.chatLoading = false;
+    $('chatSend').disabled = false;
+  }
+}
+
+function appendChat(text, role) {
+  const msgs = $('chatMsgs');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+$('chatSend').addEventListener('click', sendChat);
+$('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+/* ═══════════════════════════════════════
+   TRANSPILE BUTTON
+═══════════════════════════════════════ */
+$('transpileBtn').addEventListener('click', transpile);
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+restore();
+updateSrcNums();
+</script>
+</body>
+</html>
