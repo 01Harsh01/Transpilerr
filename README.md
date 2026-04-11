@@ -50,16 +50,6 @@ codefriend-frontend/   ← Static HTML (deploy anywhere)
    - Value: `sk-ant-api03-YOUR_KEY_HERE`
 7. Click **Deploy** — you'll get a URL like `https://codefriend-api.onrender.com`
 
-### Option B: Railway (also free)
-
-1. Go to **https://railway.app**
-2. New Project → Deploy from GitHub repo
-3. Add environment variable: `ANTHROPIC_API_KEY` = your key
-4. Railway auto-detects everything via `railway.toml`
-5. You'll get a URL like `https://codefriend-api.up.railway.app`
-
----
-
 ## STEP 3 — Deploy the Frontend
 
 The frontend is a single HTML file. Deploy it anywhere:
@@ -109,33 +99,3 @@ Python, JavaScript, TypeScript, Java, C++, C, Go, Rust, Ruby,
 PHP, Swift, Kotlin, C#, Bash, R, Lua, Dart, Scala, Haskell, Elixir, SQL
 
 ---
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/transpile` | Transpile code |
-| POST | `/explain` | Explain code |
-| POST | `/review` | Code review |
-| POST | `/simulate` | Simulate execution |
-| POST | `/chat` | Chat with AI |
-
----
-
-## Cost
-
-Claude Sonnet 4 pricing (approximate):
-- ~$3 per million input tokens
-- ~$15 per million output tokens
-- A typical transpile = ~500–1500 tokens total
-- **$5 credit ≈ thousands of transpilations**
-
----
-
-## Security Notes
-
-- Your API key lives ONLY on the backend server as an env variable
-- Users of your app never see or need the API key
-- Set `ALLOWED_ORIGINS` env var to your frontend domain in production:
-  `ALLOWED_ORIGINS=https://yourapp.netlify.app`
