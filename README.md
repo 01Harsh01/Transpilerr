@@ -20,8 +20,6 @@ codefriend-frontend/   ← Static HTML (deploy anywhere)
   index.html
 ```
 
----
-
 ## STEP 1 — Get Your Anthropic API Key (5 min)
 
 1. Go to **https://console.anthropic.com**
